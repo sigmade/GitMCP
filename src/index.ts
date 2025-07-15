@@ -77,6 +77,32 @@ class SimpleMergeReviewMCP {
               required: ['repoPath'],
             },
           },
+          {
+            name: 'show_file_diff',
+            description: 'Показать конкретные изменения в файле между ветками',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                repoPath: {
+                  type: 'string',
+                  description: 'Путь к git репозиторию',
+                },
+                filename: {
+                  type: 'string',
+                  description: 'Путь к файлу относительно корня репозитория',
+                },
+                fromBranch: {
+                  type: 'string',
+                  description: 'Ветка откуда (по умолчанию main/master)',
+                },
+                toBranch: {
+                  type: 'string',
+                  description: 'Ветка куда (по умолчанию текущая)',
+                },
+              },
+              required: ['repoPath', 'filename'],
+            },
+          },
         ],
       };
     });
@@ -90,14 +116,13 @@ class SimpleMergeReviewMCP {
             return await this.showMergeDiff(args);
           case 'quick_merge_summary':
             return await this.quickMergeSummary(args);
+          case 'show_file_diff':
+            return await this.showFileDiff(args);
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Неизвестный инструмент: ${name}`);
         }
       } catch (error) {
-        const message = typeof error === 'object' && error !== null && 'message' in error
-          ? (error as { message?: string }).message
-          : String(error);
-        throw new McpError(ErrorCode.InternalError, `Ошибка: ${message}`);
+        throw new McpError(ErrorCode.InternalError, `Ошибка: ${(error as Error).message}`);
       }
     });
   }
@@ -149,15 +174,86 @@ class SimpleMergeReviewMCP {
     };
   }
 
+  private async showFileDiff(args: any) {
+    const { repoPath, filename, fromBranch, toBranch } = args;
+    
+    if (!fs.existsSync(repoPath)) {
+      throw new Error(`Репозиторий не найден: ${repoPath}`);
+    }
+
+    // Определяем ветки
+    const sourceBranch = fromBranch || this.getMainBranch(repoPath);
+    const targetBranch = toBranch || this.getCurrentBranch(repoPath);
+
+    // Получаем diff для конкретного файла
+    const diffOutput = this.getFileDiff(repoPath, filename, sourceBranch, targetBranch);
+    
+    // Парсим diff для более читаемого вывода
+    const parsedDiff = this.parseFileDiff(diffOutput);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            filename,
+            fromBranch: sourceBranch,
+            toBranch: targetBranch,
+            ...parsedDiff,
+            rawDiff: diffOutput.split('\n').slice(0, 100), // Ограничиваем количество строк
+          }, null, 2),
+        },
+      ],
+    };
+  }
+
+  private getFileDiff(repoPath: string, filename: string, fromBranch: string, toBranch: string): string {
+    try {
+      return this.executeGit(
+        `git diff ${fromBranch}..${toBranch} -- "${filename}"`,
+        repoPath
+      );
+    } catch (error) {
+      throw new Error(`Не удалось получить diff для файла ${filename}: ${(error as Error).message}`);
+    }
+  }
+
+  private parseFileDiff(diffOutput: string): { hasChanges: boolean; additions: string[]; deletions: string[]; summary: string } {
+    const lines = diffOutput.split('\n');
+    const additions: string[] = [];
+    const deletions: string[] = [];
+    
+    let addedLines = 0;
+    let deletedLines = 0;
+
+    for (const line of lines) {
+      if (line.startsWith('+') && !line.startsWith('+++')) {
+        additions.push(line.substring(1)); // Убираем знак +
+        addedLines++;
+      } else if (line.startsWith('-') && !line.startsWith('---')) {
+        deletions.push(line.substring(1)); // Убираем знак -
+        deletedLines++;
+      }
+    }
+
+    const hasChanges = addedLines > 0 || deletedLines > 0;
+    const summary = hasChanges 
+      ? `+${addedLines} строк, -${deletedLines} строк`
+      : 'Нет изменений в файле';
+
+    return {
+      hasChanges,
+      additions: additions.slice(0, 50), // Ограничиваем вывод
+      deletions: deletions.slice(0, 50),
+      summary,
+    };
+  }
+
   private executeGit(command: string, repoPath: string): string {
     try {
       return execSync(command, { cwd: repoPath, encoding: 'utf8' }).toString().trim();
     } catch (error) {
-      const message =
-        typeof error === 'object' && error !== null && 'message' in error
-          ? (error as { message?: string }).message
-          : String(error);
-      throw new Error(`Git ошибка: ${message}`);
+      throw new Error(`Git ошибка: ${(error as Error).message}`);
     }
   }
 
@@ -271,7 +367,7 @@ class SimpleMergeReviewMCP {
     } catch (error) {
       return {
         message: 'Не удалось определить статус',
-        error: typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : String(error),
+        error: (error as Error).message,
       };
     }
   }

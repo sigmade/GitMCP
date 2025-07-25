@@ -1,8 +1,7 @@
-
 {
-  "name": "simple-merge-review-mcp",
+  "name": "simple-file-diff-mcp",
   "version": "1.0.0",
-  "description": "Простой MCP сервер для быстрого анализа Git merge операций",
+  "description": "Максимально простой MCP для показа diff файлов в Git",
   "main": "build/index.js",
   "type": "module",
   "scripts": {

@@ -9,7 +9,7 @@ import {
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 
-// Простые типы
+// Simple types
 interface MergeInfo {
   sourceBranch: string;
   targetBranch: string;
@@ -38,22 +38,22 @@ class SimpleMergeReviewMCP {
         tools: [
           {
             name: 'show_merge_diff',
-            description: 'Показать изменения между ветками перед merge',
+            description: 'Show changes between branches before merge',
             inputSchema: {
               type: 'object',
               properties: {
                 repoPath: {
                   type: 'string',
-                  description: 'Путь к git репозиторию',
+                  description: 'Path to the git repository',
                 },
                 fromBranch: {
                   type: 'string',
-                  description: 'Ветка откуда merge (по умолчанию main)',
+                  description: 'Branch to merge from (default: main)',
                   default: 'main',
                 },
                 toBranch: {
                   type: 'string',
-                  description: 'Ветка куда merge (по умолчанию текущая)',
+                  description: 'Branch to merge into (default: current)',
                 },
               },
               required: ['repoPath'],
@@ -61,17 +61,17 @@ class SimpleMergeReviewMCP {
           },
           {
             name: 'quick_merge_summary',
-            description: 'Быстрая сводка изменений для merge',
+            description: 'Quick summary of changes for merge',
             inputSchema: {
               type: 'object',
               properties: {
                 repoPath: {
                   type: 'string',
-                  description: 'Путь к git репозиторию',
+                  description: 'Path to the git repository',
                 },
                 branch: {
                   type: 'string',
-                  description: 'Ветка для анализа (по умолчанию текущая)',
+                  description: 'Branch to analyze (default: current)',
                 },
               },
               required: ['repoPath'],
@@ -79,25 +79,25 @@ class SimpleMergeReviewMCP {
           },
           {
             name: 'show_file_diff',
-            description: 'Показать конкретные изменения в файле между ветками',
+            description: 'Show specific changes in a file between branches',
             inputSchema: {
               type: 'object',
               properties: {
                 repoPath: {
                   type: 'string',
-                  description: 'Путь к git репозиторию',
+                  description: 'Path to the git repository',
                 },
                 filename: {
                   type: 'string',
-                  description: 'Путь к файлу относительно корня репозитория',
+                  description: 'Path to the file relative to the repository root',
                 },
                 fromBranch: {
                   type: 'string',
-                  description: 'Ветка откуда (по умолчанию main/master)',
+                  description: 'Branch to compare from (default: main/master)',
                 },
                 toBranch: {
                   type: 'string',
-                  description: 'Ветка куда (по умолчанию текущая)',
+                  description: 'Branch to compare to (default: current)',
                 },
               },
               required: ['repoPath', 'filename'],
@@ -119,10 +119,10 @@ class SimpleMergeReviewMCP {
           case 'show_file_diff':
             return await this.showFileDiff(args);
           default:
-            throw new McpError(ErrorCode.MethodNotFound, `Неизвестный инструмент: ${name}`);
+            throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
         }
       } catch (error) {
-        throw new McpError(ErrorCode.InternalError, `Ошибка: ${(error as Error).message}`);
+        throw new McpError(ErrorCode.InternalError, `Error: ${(error as Error).message}`);
       }
     });
   }
@@ -131,7 +131,7 @@ class SimpleMergeReviewMCP {
     const { repoPath, fromBranch = 'main', toBranch } = args;
     
     if (!fs.existsSync(repoPath)) {
-      throw new Error(`Репозиторий не найден: ${repoPath}`);
+      throw new Error(`Repository not found: ${repoPath}`);
     }
 
     const currentBranch = toBranch || this.getCurrentBranch(repoPath);
@@ -151,13 +151,13 @@ class SimpleMergeReviewMCP {
     const { repoPath, branch } = args;
     
     if (!fs.existsSync(repoPath)) {
-      throw new Error(`Репозиторий не найден: ${repoPath}`);
+      throw new Error(`Repository not found: ${repoPath}`);
     }
 
     const currentBranch = branch || this.getCurrentBranch(repoPath);
     const mainBranch = this.getMainBranch(repoPath);
     
-    // Простая сводка изменений
+    // Simple summary of changes
     const summary = {
       currentBranch,
       baseBranch: mainBranch,
@@ -178,17 +178,17 @@ class SimpleMergeReviewMCP {
     const { repoPath, filename, fromBranch, toBranch } = args;
     
     if (!fs.existsSync(repoPath)) {
-      throw new Error(`Репозиторий не найден: ${repoPath}`);
+      throw new Error(`Repository not found: ${repoPath}`);
     }
 
-    // Определяем ветки
+    // Determine branches
     const sourceBranch = fromBranch || this.getMainBranch(repoPath);
     const targetBranch = toBranch || this.getCurrentBranch(repoPath);
 
-    // Получаем diff для конкретного файла
+    // Get diff for the specific file
     const diffOutput = this.getFileDiff(repoPath, filename, sourceBranch, targetBranch);
     
-    // Парсим diff для более читаемого вывода
+    // Parse diff for more readable output
     const parsedDiff = this.parseFileDiff(diffOutput);
 
     return {
@@ -200,7 +200,7 @@ class SimpleMergeReviewMCP {
             fromBranch: sourceBranch,
             toBranch: targetBranch,
             ...parsedDiff,
-            rawDiff: diffOutput.split('\n').slice(0, 100), // Ограничиваем количество строк
+            rawDiff: diffOutput.split('\n').slice(0, 100), // Limit the number of lines
           }, null, 2),
         },
       ],
@@ -214,7 +214,7 @@ class SimpleMergeReviewMCP {
         repoPath
       );
     } catch (error) {
-      throw new Error(`Не удалось получить diff для файла ${filename}: ${(error as Error).message}`);
+      throw new Error(`Failed to get diff for file ${filename}: ${(error as Error).message}`);
     }
   }
 
@@ -228,22 +228,22 @@ class SimpleMergeReviewMCP {
 
     for (const line of lines) {
       if (line.startsWith('+') && !line.startsWith('+++')) {
-        additions.push(line.substring(1)); // Убираем знак +
+        additions.push(line.substring(1)); // Remove the + sign
         addedLines++;
       } else if (line.startsWith('-') && !line.startsWith('---')) {
-        deletions.push(line.substring(1)); // Убираем знак -
+        deletions.push(line.substring(1)); // Remove the - sign
         deletedLines++;
       }
     }
 
     const hasChanges = addedLines > 0 || deletedLines > 0;
     const summary = hasChanges 
-      ? `+${addedLines} строк, -${deletedLines} строк`
-      : 'Нет изменений в файле';
+      ? `+${addedLines} lines, -${deletedLines} lines`
+      : 'No changes in the file';
 
     return {
       hasChanges,
-      additions: additions.slice(0, 50), // Ограничиваем вывод
+      additions: additions.slice(0, 50), // Limit output
       deletions: deletions.slice(0, 50),
       summary,
     };
@@ -253,7 +253,7 @@ class SimpleMergeReviewMCP {
     try {
       return execSync(command, { cwd: repoPath, encoding: 'utf8' }).toString().trim();
     } catch (error) {
-      throw new Error(`Git ошибка: ${(error as Error).message}`);
+      throw new Error(`Git error: ${(error as Error).message}`);
     }
   }
 
@@ -262,7 +262,7 @@ class SimpleMergeReviewMCP {
   }
 
   private getMainBranch(repoPath: string): string {
-    // Пытаемся найти main или master
+    // Try to find main or master
     try {
       this.executeGit('git show-ref --verify refs/heads/main', repoPath);
       return 'main';
@@ -272,14 +272,14 @@ class SimpleMergeReviewMCP {
   }
 
   private getMergeInfo(repoPath: string, fromBranch: string, toBranch: string): MergeInfo {
-    // Получаем список измененных файлов
+    // Get the list of changed files
     const filesOutput = this.executeGit(
       `git diff --name-only ${fromBranch}..${toBranch}`,
       repoPath
     );
     const filesChanged = filesOutput ? filesOutput.split('\n').filter(f => f.trim()) : [];
 
-    // Получаем статистику изменений
+    // Get stats of changes
     const statsOutput = this.executeGit(
       `git diff --numstat ${fromBranch}..${toBranch}`,
       repoPath
@@ -298,19 +298,19 @@ class SimpleMergeReviewMCP {
       });
     }
 
-    // Количество коммитов
+    // Number of commits
     const commitsOutput = this.executeGit(
       `git rev-list --count ${fromBranch}..${toBranch}`,
       repoPath
     );
     const commits = parseInt(commitsOutput) || 0;
 
-    // Генерируем простую сводку
+    // Generate a simple summary
     let summary = '';
     if (commits === 0) {
-      summary = 'Нет новых коммитов для merge';
+      summary = 'No new commits for merge';
     } else {
-      summary = `${commits} коммитов, ${filesChanged.length} файлов, +${insertions}/-${deletions} строк`;
+      summary = `${commits} commits, ${filesChanged.length} files, +${insertions}/-${deletions} lines`;
     }
 
     return {
@@ -327,13 +327,13 @@ class SimpleMergeReviewMCP {
   private getQuickStats(repoPath: string, baseBranch: string, currentBranch: string) {
     if (baseBranch === currentBranch) {
       return {
-        message: 'Уже на базовой ветке',
+        message: 'Already on the base branch',
         needsMerge: false,
       };
     }
 
     try {
-      // Проверяем, есть ли изменения для merge
+      // Check if there are changes to merge
       const ahead = this.executeGit(
         `git rev-list --count ${baseBranch}..${currentBranch}`,
         repoPath
@@ -349,13 +349,13 @@ class SimpleMergeReviewMCP {
 
       let message = '';
       if (aheadCount === 0 && behindCount === 0) {
-        message = 'Ветки синхронизированы';
+        message = 'Branches are synchronized';
       } else if (aheadCount > 0 && behindCount === 0) {
-        message = `Опережает на ${aheadCount} коммитов`;
+        message = `Ahead by ${aheadCount} commits`;
       } else if (aheadCount === 0 && behindCount > 0) {
-        message = `Отстает на ${behindCount} коммитов`;
+        message = `Behind by ${behindCount} commits`;
       } else {
-        message = `Опережает на ${aheadCount}, отстает на ${behindCount} коммитов`;
+        message = `Ahead by ${aheadCount}, behind by ${behindCount} commits`;
       }
 
       return {
@@ -366,7 +366,7 @@ class SimpleMergeReviewMCP {
       };
     } catch (error) {
       return {
-        message: 'Не удалось определить статус',
+        message: 'Failed to determine status',
         error: (error as Error).message,
       };
     }
@@ -379,6 +379,6 @@ class SimpleMergeReviewMCP {
   }
 }
 
-// Запуск
+// Start
 const server = new SimpleMergeReviewMCP();
 server.run().catch(console.error);
